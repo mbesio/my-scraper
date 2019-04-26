@@ -1,3 +1,4 @@
+#link - https://towardsdatascience.com/web-scraping-craigslist-a-complete-tutorial-c41cea4f4981
 #Download all of the Craigslisting listings in Oakland, with pics
 
 from requests import get
@@ -8,10 +9,11 @@ import re
 from random import randint #avoid throttling by not sending too many requests one after the other
 from warnings import warn
 from time import time
+import pandas as pd
 
 
 
-url = "https://sfbay.craigslist.org/search/eby/apa?query=Oakland&hasPic=1&availabilityMode=0&sale_date=all+dates"
+url = "https://sfbay.craigslist.org/search/sfc/apa?hasPic=1"
 
 response = get(url)
 page_soup = soup(response.text, "html.parser")
@@ -19,10 +21,9 @@ page_soup = soup(response.text, "html.parser")
 #get the html container of the housing posts
 posts = page_soup.find_all('li', class_= 'result-row')
 
-filename = "Oakland_housing.csv"
-f = open(filename, "w")
-headers = "post_timing, neighborhood, number bedrooms, sqft, URL, price"
-# post title, leave this out for now aasi it is causing issues
+filename = "SF_housing.csv"
+f = open(filename, "w", encoding='utf-8')
+headers = "post_timing, neighborhood, post title, number bedrooms, sqft, URL, price\n"
 f.write(headers)
 
 
@@ -35,7 +36,7 @@ iterations = 0
 
 post_timing = []
 post_hoods = []
-#post_title_texts = []
+post_title_texts = []
 bedroom_counts = []
 sqfts = []
 post_links = []
@@ -44,12 +45,12 @@ post_prices = []
 for page in pages:
 
     #get requests
-    response = get("https://sfbay.craigslist.org/search/eby/apt?"
+    response = get("https://sfbay.craigslist.org/search/sfc/apt?"
                    + "s=" #the parameter for defining the page number
                    + str(page) #the page number in the pages array from earlier
                    + "&hasPic=1"
-                   + "&availabilityMode=0"
-                   + "&query=Oakland")
+                   + "&availabilityMode=0")
+
 
     sleep(randint(1,5))
 
@@ -76,8 +77,8 @@ for page in pages:
 
             #title text
             post_title = post.find('a', class_='result-title hdrlnk')
-            #post_title_text = post_title.text
-            #post_title_texts.append(post_title_text)
+            post_title_text = post_title.text
+            post_title_texts.append(post_title_text)
 
             #post link
             post_link = post_title['href']
@@ -141,7 +142,7 @@ for page in pages:
                 #    sqft = np.nan
                 #    sqfts.append(sqft)
 
-        f.write(post_datetime + ',' + post_hood + ',' + str(bedroom_count)  + ',' + str(sqft) + ',' + post_link + ',' + '\n')
+        f.write(post_datetime.replace(","," ") + ',' + post_hood.replace(","," ") + ',' + post_title_text.replace(","," ") + ','+ str(bedroom_count)  + ',' + str(sqft) + ',' + post_link.replace(","," ") + ',' + '\n')
         #f.write(post_datetime + ',' + post_hood + ',' + post_title_text + ',' + bedroom_count + ',' + sqft + ',' + post_link + ',' + post_price + ',' + '\n')
         f.close
 
@@ -150,3 +151,14 @@ for page in pages:
 
 print("\n")
 print("Scrape complete!")
+
+import pandas as pd
+
+eb_apts = pd.DataFrame({'posted': post_timing,
+                       'neighborhood': post_hoods,
+                       'post title': post_title_texts,
+                       'number bedrooms': bedroom_counts,
+                        'sqft': sqfts,
+                        'URL': post_links,
+                       'price': post_prices})
+eb_apts.to_csv('exceltest.csv')
